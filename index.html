@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSK 5 Flashcard App</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap');
+
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f4f6f9; /* สีพื้นหลังโทนสะอาด */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+
+        h1 {
+            color: #c0392b; /* สีแดงเข้มสไตล์จีน */
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        p.subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+
+        /* กล่องการ์ดหลัก */
+        .card-container {
+            perspective: 1000px;
+            width: 320px;
+            height: 450px;
+            cursor: pointer;
+        }
+
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .card.is-flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+            background: white;
+            text-align: center;
+            border: 1px solid #eee;
+        }
+
+        /* ด้านหน้า */
+        .card-face.front {
+            background: linear-gradient(135deg, #ffffff 0%, #fff0f0 100%);
+        }
+
+        .chinese-word {
+            font-size: 5rem;
+            font-weight: bold;
+            color: #c0392b;
+            margin-bottom: 15px;
+        }
+
+        .tap-hint {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-top: 20px;
+            border: 1px dashed #ddd;
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+
+        /* ด้านหลัง */
+        .card-face.back {
+            transform: rotateY(180deg);
+            background-color: #fff;
+        }
+
+        .pinyin {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .meaning {
+            font-size: 1.4rem;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .example-box {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 10px;
+            width: 100%;
+            text-align: left;
+        }
+
+        .ex-cn {
+            font-size: 1.1rem;
+            color: #c0392b;
+            margin-bottom: 5px;
+        }
+
+        .ex-th {
+            font-size: 0.95rem;
+            color: #7f8c8d;
+        }
+
+        /* ปุ่มควบคุม */
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Sarabun', sans-serif;
+            font-weight: 600;
+        }
+
+        .btn-prev { background-color: #ecf0f1; color: #7f8c8d; }
+        .btn-next { background-color: #333; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        
+        button:hover { transform: translateY(-2px); }
+        button:active { transform: translateY(0); }
+
+        .progress {
+            font-size: 0.9rem;
+            color: #bdc3c7;
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>HSK 5 Challenge</h1>
+    <p class="subtitle">30 วันพิชิตคำศัพท์</p>
+
+    <div class="card-container" onclick="flipCard()">
+        <div class="card" id="flashcard">
+            <div class="card-face front">
+                <div class="chinese-word" id="word-cn">...</div>
+                <div class="tap-hint">แตะเพื่อดูความหมาย</div>
+            </div>
+
+            <div class="card-face back">
+                <div class="pinyin" id="word-pinyin">...</div>
+                <div class="meaning" id="word-th">...</div>
+                
+                <div class="example-box">
+                    <div class="ex-cn" id="ex-cn">...</div>
+                    <div class="ex-th" id="ex-th">...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-prev" onclick="prevCard()">กลับ</button>
+        <span class="progress" id="progress-text">1 / 5</span>
+        <button class="btn-next" onclick="nextCard()">ถัดไป</button>
+    </div>
+
+    <script>
+        // ข้อมูลคำศัพท์ (คุณสามารถมาแก้เพิ่มตรงนี้ได้เรื่อยๆ)
+const vocabList = [
+    {
+        cn: "安慰",
+        pinyin: "ānwèi",
+        th: "ปลอบใจ",
+        ex_cn: "他一直在安慰那个哭泣的孩子。",
+        ex_th: "เขาคอยปลอบใจเด็กที่กำลังร้องไห้คนนั้นตลอด"
+    },
+    {
+        cn: "安装",
+        pinyin: "ānzhuāng",
+        th: "ติดตั้ง",
+        ex_cn: "这台电脑需要安装新的软件。",
+        ex_th: "คอมพิวเตอร์เครื่องนี้จำเป็นต้องติดตั้งซอฟต์แวร์ใหม่"
+    },
+    {
+        cn: "岸",
+        pinyin: "àn",
+        th: "ฝั่ง, ตลิ่ง",
+        ex_cn: "船慢慢地靠近了岸边。",
+        ex_th: "เรือค่อยๆ เคลื่อนเข้าใกล้ฝั่ง"
+    },
+    {
+        cn: "暗",
+        pinyin: "àn",
+        th: "มืด, สลัว",
+        ex_cn: "天色已经暗了下来。",
+        ex_th: "ท้องฟ้าเริ่มมืดลงแล้ว"
+    },
+    {
+        cn: "熬夜",
+        pinyin: "áoyè",
+        th: "อดหลับอดนอน",
+        ex_cn: "经常熬夜对身体不好。",
+        ex_th: "การอดหลับอดนอนบ่อยๆ ไม่ดีต่อสุขภาพ"
+    },
+    {
+        cn: "把握",
+        pinyin: "bǎwò",
+        th: "มั่นใจ(ว่าจะสำเร็จ), กุม(โอกาส)",
+        ex_cn: "我没有把握能通过这次考试。",
+        ex_th: "ฉันไม่มีความมั่นใจเลยว่าจะสอบผ่านครั้งนี้"
+    },
+    {
+        cn: "摆",
+        pinyin: "bǎi",
+        th: "วาง, จัดวาง, โยกไปมา",
+        ex_cn: "他在桌子上摆了一瓶花。",
+        ex_th: "เขาวางแจกันดอกไม้ไว้บนโต๊ะ 1 ใบ"
+    },
+    {
+        cn: "办理",
+        pinyin: "bànlǐ",
+        th: "ดำเนินการ, จัดการ",
+        ex_cn: "请问办理入住手续在哪里？",
+        ex_th: "ขอโทษครับ ดำเนินการเช็คอินที่ไหนครับ?"
+    },
+    {
+        cn: "傍晚",
+        pinyin: "bàngwǎn",
+        th: "พลบค่ำ, ยามเย็น",
+        ex_cn: "傍晚时分，公园里很多人散步。",
+        ex_th: "ช่วงเวลาพลบค่ำ ในสวนสาธารณะมีคนเดินเล่นเยอะมาก"
+    },
+    {
+        cn: "包裹",
+        pinyin: "bāoguǒ",
+        th: "พัสดุ",
+        ex_cn: "你的包裹已经寄到了。",
+        ex_th: "พัสดุของคุณส่งมาถึงแล้ว"
+    },
+    {
+        cn: "包含",
+        pinyin: "bāohán",
+        th: "ครอบคลุม, ประกอบด้วย (เนื้อหา)",
+        ex_cn: "这句话包含了两层意思。",
+        ex_th: "ประโยคนี้ครอบคลุมความหมาย 2 นัย"
+    },
+    {
+        cn: "包括",
+        pinyin: "bāokuò",
+        th: "รวมถึง (แจกแจงสมาชิก)",
+        ex_cn: "旅游费包括机票和酒店。",
+        ex_th: "ค่าท่องเที่ยวรวมถึงตั๋วเครื่องบินและโรงแรม"
+    },
+    {
+        cn: "薄",
+        pinyin: "báo",
+        th: "บาง",
+        ex_cn: "这张纸太薄了，容易破。",
+        ex_th: "กระดาษแผ่นนี้บางเกินไป ขาดง่าย"
+    },
+    {
+        cn: "宝贝",
+        pinyin: "bǎobèi",
+        th: "ของรักของหวง, ที่รัก (เรียกเด็ก/แฟน)",
+        ex_cn: "这是爷爷最喜欢的宝贝。",
+        ex_th: "นี่คือของรักของหวงที่คุณปู่ชอบที่สุด"
+    },
+    {
+        cn: "宝贵",
+        pinyin: "bǎoguì",
+        th: "ล้ำค่า, มีค่า",
+        ex_cn: "请珍惜宝贵的时间。",
+        ex_th: "โปรดเห็นคุณค่าของเวลาอันมีค่า"
+    },
+    {
+        cn: "保持",
+        pinyin: "bǎochí",
+        th: "รักษา(สภาพ/ความสัมพันธ์)ให้คงอยู่",
+        ex_cn: "我们要保持教室的干净。",
+        ex_th: "พวกเราต้องรักษาความสะอาดของห้องเรียน"
+    },
+    {
+        cn: "保存",
+        pinyin: "bǎocún",
+        th: "เก็บรักษา, บันทึก(ไฟล์)",
+        ex_cn: "别忘了保存你的文件。",
+        ex_th: "อย่าลืมบันทึกไฟล์ของคุณนะ"
+    },
+    {
+        cn: "保留",
+        pinyin: "bǎoliú",
+        th: "สงวนไว้, เก็บไว้ก่อน",
+        ex_cn: "我会为你保留这个座位。",
+        ex_th: "ฉันจะสงวนที่นั่งนี้ไว้ให้คุณ"
+    },
+    {
+        cn: "保险",
+        pinyin: "bǎoxiǎn",
+        th: "ประกันภัย",
+        ex_cn: "买旅游保险是很重要的。",
+        ex_th: "การซื้อประกันการเดินทางเป็นเรื่องสำคัญมาก"
+    },
+    {
+        cn: "报到",
+        pinyin: "bàodào",
+        th: "รายงานตัว (เข้าเรียน/ทำงาน)",
+        ex_cn: "新生今天开始报到。",
+        ex_th: "นักเรียนใหม่เริ่มรายงานตัววันนี้"
+    },
+    {
+        cn: "报道",
+        pinyin: "bàodào",
+        th: "รายงานข่าว",
+        ex_cn: "电视上正在报道这条新闻。",
+        ex_th: "ในทีวีกำลังรายงานข่าวเรื่องนี้อยู่"
+    },
+    {
+        cn: "报告",
+        pinyin: "bàogào",
+        th: "รายงาน (เอกสาร/การพูด)",
+        ex_cn: "我明天要交一份工作报告。",
+        ex_th: "พรุ่งนี้ฉันต้องส่งรายงานการทำงาน 1 ฉบับ"
+    },
+    {
+        cn: "报社",
+        pinyin: "bàoshè",
+        th: "สำนักหนังสือพิมพ์",
+        ex_cn: "他在一家知名的报社工作。",
+        ex_th: "เขาทำงานในสำนักหนังสือพิมพ์ที่มีชื่อเสียงแห่งหนึ่ง"
+    },
+    {
+        cn: "抱怨",
+        pinyin: "bàoyuàn",
+        th: "บ่น, ตัดพ้อ",
+        ex_cn: "别总是抱怨，要努力解决问题。",
+        ex_th: "อย่าเอาแต่บ่น ต้องพยายามแก้ปัญหา"
+    },
+    {
+        cn: "悲观",
+        pinyin: "bēiguān",
+        th: "มองโลกในแง่ร้าย",
+        ex_cn: "无论发生什么，都不要太悲观。",
+        ex_th: "ไม่ว่าจะเกิดอะไรขึ้น อย่ามองโลกในแง่ร้ายจนเกินไป"
+    },
+    {
+        cn: "背",
+        pinyin: "bèi",
+        th: "หลัง, ท่องหนังสือ",
+        ex_cn: "他在努力背生词。",
+        ex_th: "เขากำลังขยันท่องคำศัพท์"
+    },
+    {
+        cn: "背景",
+        pinyin: "bèijǐng",
+        th: "ฉากหลัง, ภูมิหลัง",
+        ex_cn: "请介绍一下你的教育背景。",
+        ex_th: "ช่วยแนะนำประวัติ(ภูมิหลัง)การศึกษาของคุณหน่อย"
+    },
+    {
+        cn: "被子",
+        pinyin: "bèizi",
+        th: "ผ้าห่ม",
+        ex_cn: "这床被子很暖和。",
+        ex_th: "ผ้าห่มผืนนี้อุ่นมาก"
+    },
+    {
+        cn: "本科",
+        pinyin: "běnkē",
+        th: "ปริญญาตรี",
+        ex_cn: "他是本科学历。",
+        ex_th: "เขามีวุฒิการศึกษาระดับปริญญาตรี"
+    },
+    {
+        cn: "本领",
+        pinyin: "běnlǐng",
+        th: "ความสามารถ, เก่งกาจ",
+        ex_cn: "这只猴子有很多本领。",
+        ex_th: "ลิงตัวนี้มีความสามารถหลากหลาย"
+    }
+];
+
+        let currentIndex = 0;
+        const cardElement = document.getElementById('flashcard');
+
+        function updateCardDisplay() {
+            const item = vocabList[currentIndex];
+            
+            // ใส่ข้อมูลลงไปใน HTML
+            document.getElementById('word-cn').textContent = item.cn;
+            document.getElementById('word-pinyin').textContent = item.pinyin;
+            document.getElementById('word-th').textContent = item.th;
+            document.getElementById('ex-cn').textContent = item.ex_cn;
+            document.getElementById('ex-th').textContent = item.ex_th;
+
+            // อัปเดตเลขหน้า
+            document.getElementById('progress-text').textContent = (currentIndex + 1) + " / " + vocabList.length;
+
+            // รีเซ็ตการพลิกกลับมาหน้าแรก
+            cardElement.classList.remove('is-flipped');
+        }
+
+        function flipCard() {
+            cardElement.classList.toggle('is-flipped');
+        }
+
+        function nextCard() {
+            if (currentIndex < vocabList.length - 1) {
+                currentIndex++;
+                updateCardDisplay();
+            } else {
+                alert("🎉 จบชุดคำศัพท์แล้ว! เก่งมาก!");
+                currentIndex = 0; // วนกลับไปเริ่มใหม่
+                updateCardDisplay();
+            }
+        }
+
+        function prevCard() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateCardDisplay();
+            }
+        }
+
+        // เริ่มต้นทำงาน
+        updateCardDisplay();
+    </script>
+</body>
+</html>
